@@ -1,0 +1,12 @@
+// IN: a b
+read from input();
+write to output;
+write to output;
+
+read from ' ' literal;
+write to output;
+
+read from input();
+write to output;
+write to output;
+
