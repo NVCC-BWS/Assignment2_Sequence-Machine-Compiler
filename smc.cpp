@@ -4,7 +4,7 @@
 |* Written by Bryce Summers                               *|
 |* Development started on 9.26.2020                       *|
 |* Assignment released on 9.30.2020.                      *|
-|* last modified on 9.30.2020. (version 1)                *|
+|* last modified on 11.4.2020. (version 1.1)              *|
 |*                                                        *|
 |* ITP - 132, Fall 2020                                   *|
 \**********************************************************/
@@ -17,7 +17,7 @@
 |*                                                        *|
 |*     (search for checkSyntaxError1 function)            *|
 |*                                                        *|
-|*    Line #1907 As of 2:20 pm on September 30, 2020      *|
+|*    Line #1935 As of 9:26 pm on November 4th, 2020      *|
 |*                                                        *|
 |*                                                        *|
 |*  - Do NOT modify the code ABOVE that box.              *|
@@ -118,6 +118,7 @@
 #include <iostream> // Input / Output Streams
 #include <fstream>  // File Streams.
 
+#include <sys/stat.h> // Creating IO folder.
 
 // ifstream: input from file.
 // ofstream: output to file.
@@ -131,9 +132,10 @@ using namespace std; // Try removing this line and finding
                      // each of them.
 
 // Location of files.
-const string INPUT_FILE_PATH  = "./IN, Sequence Machine Programs/input.txt";
-const string OUTPUT_FILE_PATH = "./OUT, Error Logs/output.txt";
-const string TEST_FAILURE_PATH = "./OUT, Error Logs/output.txt";
+const string INPUT_FILE_PATH   = "./io/input.txt";
+const string INPUT_FILE_PATH2  = "./input.txt"; // back up.
+const string OUTPUT_FILE_PATH  = "./io/output.txt";
+const string OUTPUT_FILE_PATH2  = "./output.txt"; // back up.
 
 
 // Sequence Machine Compiler Error message
@@ -205,7 +207,7 @@ void testInputFunctions();
 void testInput_AND_OutputFunctions();
 
 // -- Input.
-void openFile(ifstream & input_file, string filepath);
+bool openFile(ifstream & input_file, string filepath);
 void readByWord(ifstream & input_file);
 void readByLine(ifstream & input_file);
 // Delimit input by letter n and line breaks.
@@ -214,7 +216,7 @@ void readByChar(ifstream & input_file);
 void closeFile(ifstream & input_file);
 
 // -- Output.
-void openFile(ofstream & output_file, string filepath);
+bool openFile(ofstream & output_file, string filepath);
 void writeToFile(ofstream & output_file, string data);
 void redirectCoutToFile(ofstream & output_file);
 void redirectCoutToStringStream(stringstream & stringStream);
@@ -304,7 +306,7 @@ void test(string        input,          // IN
           int & fail_count,             // OUT (increments)
           int & test_id,                // IN / OUT (increments)
           int whichChecks);             // IN
-
+void logToOutputFile(stringstream & log);
 
 // Sanitizes a string by removing spaces, tabs, line breaks,
 // unifying case, etc.
@@ -351,23 +353,22 @@ void DEBUG(string str)
 }
 
 // returns true if the user is not Done.
-bool userSession();
+bool userSession(int session);
 
 // -- Implementation ----------------------------------
 
 int main () {
 
-    bool notDone = false;
+    mkdir("./io"); // Delete this line if working with online gdb.
+                   // or if it is causing problems.
 
-    do
-    {
-        notDone = userSession();
-    }while(notDone);
+    int count = 0;
+    while(userSession(++count));
 
     return 0;
 }
 
-bool userSession()
+bool userSession(int session)
 {
     cout << "*********************************************************";
     cout << endl << endl << endl;
@@ -375,10 +376,10 @@ bool userSession()
     cout << endl;
     cout << "Enter any/all of the following options, then press enter." << endl;
     cout << endl;
+
     //cout << "Only what is specified will be used." << endl;
-    cout << "D: Done, EXIT this program." << endl;
-    cout << endl;
-    cout << "U: Run every unit test availible." << endl;
+    //cout << endl;
+    //cout << "U: Run every unit test available." << endl;
     /*
     cout << "A: Run ALL Categories of tests." << endl;
     cout << "0: Run Tests of ALL levels" << endl;
@@ -395,8 +396,9 @@ bool userSession()
     cout << "2: Run tests up to level 2." << endl;
     cout << "3: Run tests up to level 3." << endl;
     //cout << "4: Run tests up to level 4." << endl;
-    cout << endl;
-    cout << "i: Try to compile and run " << INPUT_FILE_PATH << endl;
+    //cout << endl;
+    cout << "X: Execute compiler on file: " << INPUT_FILE_PATH << endl;
+    cout << "D: Done, EXIT this program." << endl;
 
     bool valid_command = true;
     bool compile_input_file = false;
@@ -408,8 +410,8 @@ bool userSession()
         exit_program = false;
         valid_command = true; // innocent until proven guilty.
 
-        cout << "---------------------------------------------------------" << endl;
-        cout << "<User Input>: ";
+        cout << "---------------(Scroll UP to see past output!)-----------" << endl;
+        cout << "<User Input #" << session << ">: ";
 
         string input;
         cin >> input >> std::skipws;
@@ -433,7 +435,7 @@ bool userSession()
                     }
                     continue;
                 case 'd':
-                case 'D': exit_program = false; break;
+                case 'D': exit_program = true; break;
                           // Done, NOT notDone.
                 case 'u':
                 case 'U': enabled |= ALL;
@@ -458,15 +460,15 @@ bool userSession()
                 case '2': enabled |= LVL2;
                 case '1': enabled |= LVL1;     break;
 
-                case 'i':
-                case 'I': compile_input_file = true; break;
+                case 'x': // x stands for execute.
+                case 'X': compile_input_file = true; break;
             }
         }
     }while(false == valid_command);
 
     if(exit_program)
     {
-        return false;
+        return false; // Don't go again.
     }
 
     if(enabled == NONE && compile_input_file == false)
@@ -479,28 +481,28 @@ bool userSession()
 
     //printAllFullErrorMessages();
 
+    ifstream code;
+
     if(enabled != NONE)
     {
         executeUnitTests(enabled);
     }
+
+    // Try to open the code for a normal compile.
+    else if(!openFile(code, INPUT_FILE_PATH) &&
+            !openFile(code, INPUT_FILE_PATH2))
+    {
+        // Input file not found. Prompt student to create it!
+        cout << "\n";
+        cout << "If you want to test your own code, put it in\n"
+                "a text file at one of those path locations." << endl;
+        cout << "\n\n\n";
+    }
     else
     {
         // Normal Compile.
-
-        ifstream code;
-        openFile(code, INPUT_FILE_PATH);
-
         stringstream log;
-
         compileSequenceMachineProgram(code, log);
-
-
-        ofstream output;
-        openFile(output, OUTPUT_FILE_PATH);
-
-        output << log.str();
-        output.close();
-
 
         stringstream source_code_raw;
         rewindStream(code);
@@ -539,8 +541,10 @@ bool userSession()
         // NOTE: There must be output.
         cout << log.str() << endl;
         cout << "--------------------------------------------" << endl;
-        cout << "Log was written to this file:\n\n";
-        cout << "  " << TEST_FAILURE_PATH << endl;
+
+        // Output logging communication to user.
+        logToOutputFile(log);
+
         cout << endl;
     }
 
@@ -704,6 +708,12 @@ void executeUnitTests(int ENABLED)
         test("read from 'x' literaL;",   S9, fl, fc, id, SC);
         test("wriTe to output;",         S9, fl, fc, id, SC);
         test("write tO output;",         S9, fl, fc, id, SC);
+
+        test("// write tO output;",      OK, fl, fc, id, SC);
+        test("// rEAD from input();",    OK, fl, fc, id, SC);
+        test("//   From",                OK, fl, fc, id, SC);
+        test("// wRiTE to output;",      OK, fl, fc, id, SC);
+        test("// LItERAL",               OK, fl, fc, id, SC);
     }
 
     if(LVL2 & ENABLED)
@@ -962,10 +972,6 @@ void executeUnitTests(int ENABLED)
     // Display results on the console.
     cout << failure_log.str() << endl;
 
-    ofstream fail_log_file;
-    openFile(fail_log_file, TEST_FAILURE_PATH);
-    fail_log_file << failure_log.str();
-
     cout << endl;
     cout << "Done Unit Testing. ";// << endl << endl;
 
@@ -1001,11 +1007,37 @@ void executeUnitTests(int ENABLED)
 
 
     cout << nFail << " tests failed. (";
-    cout << fWhole << point << fTenth << "%) ";
-    cout << "Log was written to this file:\n\n";
-    cout << "  " << TEST_FAILURE_PATH << endl;
+    cout << fWhole << point << fTenth << "%) \n";
+
+    logToOutputFile(failure_log);
+
     cout << endl;
 }
+
+void logToOutputFile(stringstream & log)
+{
+    ofstream log_file;
+    string path;
+    if(openFile(log_file, OUTPUT_FILE_PATH))
+    {
+        log_file << log.str();
+        path = OUTPUT_FILE_PATH;
+    }
+    else if (openFile(log_file, OUTPUT_FILE_PATH2))
+    {
+        log_file << log.str();
+        path = OUTPUT_FILE_PATH2;
+    }
+
+    if(log_file.is_open())
+    {
+        cout << "Log was written to this file: ";
+        cout << path << endl;
+        log_file.close();
+    }
+}
+
+
 
 // Note: RAW Actual output filled during compilation process.
 void test(string        input,          // IN
@@ -1571,18 +1603,15 @@ void rewindStream(istream & input_stream)
     input_stream.seekg (0, input_stream.beg);
 }
 
-void openFile(ifstream & file, string filepath)
+bool openFile(ifstream & file, string filepath)
 {
   file = ifstream(filepath);
   if (!file.is_open())
   {
-    cerr << "Error: Unable to Open Input File" << endl;
-    cerr << "It may not have been found at:  " << endl;
-    cerr << "  " << filepath << endl;
-    string wait;
-    cin >> wait;
-    exit(0xBAD);
+    cerr << "Unable to Open: " << filepath << endl;
   }
+
+  return file.is_open(); // Success.
 }
 
 void closeFile(ifstream & file)
@@ -1591,19 +1620,15 @@ void closeFile(ifstream & file)
 }
 
 // Output file.
-void openFile(ofstream & file, string filepath)
+bool openFile(ofstream & file, string filepath)
 {
-    file = ofstream(filepath);
+  file = ofstream(filepath);
+  if (!file.is_open())
+  {
+    cerr << "Unable to Open: " << filepath << endl;
+  }
 
-    if (!file.is_open())
-    {
-        cerr << "Error: Unable to Open Output File" << endl;
-        cerr << "It may not have been found at:   " << endl;
-        cerr << "  " << filepath << endl;
-        string wait;
-        cin >> wait;
-        exit(0xBAD);
-    }
+  return file.is_open(); // Success.
 }
 
 void closeFile(ofstream & output_file)
@@ -1674,6 +1699,9 @@ string visible(string str)
     while(!in.eof())
     {
         char c = in.get();
+
+        if(in.fail() || in.eof()){break;}
+
         if(c == ' ')
         {
             out << ' ';

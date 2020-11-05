@@ -25,3 +25,7 @@
 
 
 Good Luck
+
+
+- BUG notes: On Online GDB, the xecuting the example prints replacement characters at the end of the file and on my machine prints [\n] text instead of the line numbers. This doesn't happen on my windows machine.
+- I may have failed to check for failure conditions in some of the earlier code that I wrote. It shouldn't affect your experience unless you are very ambitious.

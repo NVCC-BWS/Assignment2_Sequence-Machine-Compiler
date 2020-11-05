@@ -1,0 +1,18 @@
+// IN: a b
+
+// This is just an Example program
+// You can put whatever code single or multi line
+// program you want here to specifically see what
+// your compiler thinks of it!
+
+read from input();
+write to output;
+write to output;
+
+read from ' ' literal;
+write to output;
+
+read from input();
+write to output;
+write to output;
+
